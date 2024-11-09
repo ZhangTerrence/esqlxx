@@ -1,7 +1,11 @@
 #include <iostream>
 
+#include "include/generator.hpp"
+
 int main()
 {
-    std::cout << "Hello, World!" << std::endl;
+    esqlxx::generator generator;
+    generator.read_inputs();
+    generator.print();
     return 0;
 }
