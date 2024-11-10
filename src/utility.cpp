@@ -31,5 +31,6 @@ std::string esqlxx::utility::to_cpp(std::string s)
     s = std::regex_replace(s, std::regex("="), "==");
     s = std::regex_replace(s, std::regex("AND"), "&&");
     s = std::regex_replace(s, std::regex("OR"), "||");
+    s = std::regex_replace(s, std::regex("NOT"), "!");
     return s;
 }
