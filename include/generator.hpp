@@ -15,6 +15,7 @@ namespace esqlxx
         generator(std::string connection_string, std::string table);
 
         void read_inputs();
+
         void print() const;
 
         void generate();
@@ -28,7 +29,7 @@ namespace esqlxx
         std::string s_;
         std::string connection_string_;
         std::string table_;
-        std::unordered_map<std::string, std::string> attributes_;
+        std::unordered_map<std::string, std::tuple<int, std::string>> attributes_;
 
         void get_table_info();
         void generate_headers();
@@ -36,7 +37,10 @@ namespace esqlxx
         void generate_helpers();
         void generate_main();
         std::string generate_init_loop() const;
+        std::string generate_scan_loops() const;
         std::string generate_hash_fn() const;
+        static int generate_aggregate_init(esqlxx::aggregate_fn const& aggregate_fn);
+        static std::string generate_aggregate_inc(esqlxx::aggregate_fn const& aggregate_fn);
         void write_file() const;
     };
 }

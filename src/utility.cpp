@@ -25,6 +25,20 @@ std::vector<std::string> esqlxx::utility::split(std::string const& s, char const
     return tokens;
 }
 
+std::string esqlxx::utility::join(std::vector<std::string> const& vector, std::string const& separator)
+{
+    std::string s;
+    for (int i = 0; i < vector.size(); i++)
+    {
+        s += vector[i];
+        if (i != vector.size() - 1)
+        {
+            s += separator;
+        }
+    }
+    return s;
+}
+
 std::string esqlxx::utility::to_cpp(std::string s)
 {
     s = std::regex_replace(s, std::regex("\'"), "\"");
