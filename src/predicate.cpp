@@ -1,8 +1,7 @@
 #include "../include/predicate.hpp"
+#include "../include/utility.hpp"
 
 #include <iostream>
-
-#include "../include/utility.hpp"
 
 esqlxx::predicate::predicate(int const i, std::string const& predicate)
 {

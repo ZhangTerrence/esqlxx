@@ -1,11 +1,7 @@
 #include "../include/aggregate_fn.hpp"
-
-#include <iostream>
-#include <ostream>
-
 #include "../include/utility.hpp"
 
-#include <utility>
+#include <ostream>
 
 esqlxx::aggregate_fn::aggregate_fn(int const i, std::string const& aggregate)
 {

@@ -41,6 +41,7 @@ namespace esqlxx
         std::string generate_hash_fn() const;
         static int generate_aggregate_init(esqlxx::aggregate_fn const& aggregate_fn);
         static std::string generate_aggregate_inc(esqlxx::aggregate_fn const& aggregate_fn);
+        std::string generate_having_clause() const;
         void write_file() const;
     };
 }

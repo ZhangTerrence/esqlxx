@@ -165,13 +165,21 @@ void esqlxx::generator::generate_helpers()
         "}\n";
     this->s_ +=
         "void print_output(std::unordered_map<std::string, output_tuple> const& output) {\n"
-        "  for (const auto& [key, value] : output) {\n";
+        "  std::cout << ";
     for (auto const& e : this->output_structure_)
     {
-        this->s_ += "    std::cout << value." + e + " << \" \";\n";
+        this->s_ += "\"" + e + " \" << ";
+    }
+    this->s_ += "std::endl;\n"
+        "  for (const auto& [key, value] : output) {\n"
+        "    if (" + this->generate_having_clause() + ") {\n";
+    for (auto const& e : this->output_structure_)
+    {
+        this->s_ += "      std::cout << value." + e + " << \" \";\n";
     }
     this->s_ +=
-        "    std::cout << std::endl;\n"
+        "      std::cout << std::endl;\n"
+        "    }\n"
         "  }\n"
         "}\n";
 }
@@ -324,6 +332,36 @@ std::string esqlxx::generator::generate_aggregate_inc(esqlxx::aggregate_fn const
     case Max:
         return std::format("= std::max(output[hash].{}, {});\n", aggregate_fn.get_string(), aggregate_fn.get_attribute());
     }
+}
+
+std::string esqlxx::generator::generate_having_clause() const
+{
+    std::string s;
+    std::unordered_map<std::string, bool> aggregate_fns;
+    for (auto const& grouping_variable : this->grouping_variables_)
+    {
+        for (auto const& aggregate_fn : grouping_variable.get_aggregate_fns())
+        {
+            aggregate_fns[aggregate_fn.get_string()] = true;
+        }
+    }
+    auto const& tokens = esqlxx::utility::split(this->having_clause_, ' ');
+    for (int i = 0; i < tokens.size(); i++)
+    {
+        if (auto const& token = tokens[i]; aggregate_fns.contains(token))
+        {
+            s += "value." + token;
+        }
+        else
+        {
+            s += token;
+        }
+        if (i != tokens.size() - 1)
+        {
+            s += " ";
+        }
+    }
+    return s;
 }
 
 void esqlxx::generator::write_file() const

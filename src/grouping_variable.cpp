@@ -1,9 +1,9 @@
 #include "../include/grouping_variable.hpp"
 #include "../include/utility.hpp"
 
+#include <bits/ranges_algo.h>
 #include <iostream>
 #include <unordered_map>
-#include <bits/ranges_algo.h>
 
 esqlxx::grouping_variable::grouping_variable(int const i)
     : i_(i), aggregate_fns_({}), predicates_{{}}
