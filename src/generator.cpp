@@ -328,9 +328,9 @@ std::string esqlxx::generator::generate_aggregate_inc(esqlxx::aggregate_fn const
                            aggregate_fn.get_string(),
                            aggregate_fn.get_i());
     case Min:
-        return std::format("= std::min(output[hash].{}, {});\n", aggregate_fn.get_string(), aggregate_fn.get_attribute());
+        return std::format("= std::min(output[hash].{}, static_cast<double>({}));\n", aggregate_fn.get_string(), aggregate_fn.get_attribute());
     case Max:
-        return std::format("= std::max(output[hash].{}, {});\n", aggregate_fn.get_string(), aggregate_fn.get_attribute());
+        return std::format("= std::max(output[hash].{}, static_cast<double>({}));\n", aggregate_fn.get_string(), aggregate_fn.get_attribute());
     }
 }
 
