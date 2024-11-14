@@ -3,7 +3,7 @@
 
 #include <iostream>
 
-esqlxx::predicate::predicate(int const i, std::string const& predicate)
+esqlxx::predicate::predicate(int const i, std::string const& predicate, std::unordered_map<std::string, bool> const& grouping_attributes)
 {
     this->i_ = i;
     auto const& tokens = esqlxx::utility::split(predicate, '.');
@@ -11,7 +11,7 @@ esqlxx::predicate::predicate(int const i, std::string const& predicate)
     auto const& tokens_ = esqlxx::utility::split(tokens[1], ' ');
     this->lhs_ = tokens_[0];
     this->operator_ = tokens_[1];
-    this->rhs_ = tokens_[2];
+    this->rhs_ = grouping_attributes.contains(tokens_[2]) ? "output[hash]." + tokens_[2] : tokens_[2];
 }
 
 std::string esqlxx::predicate::get_string() const

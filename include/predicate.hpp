@@ -2,13 +2,14 @@
 #define PREDICATE_HPP
 
 #include <string>
+#include <unordered_map>
 
 namespace esqlxx
 {
     class predicate
     {
     public:
-        predicate(int i, std::string const& predicate);
+        predicate(int i, std::string const& predicate, std::unordered_map<std::string, bool> const& grouping_attributes);
 
         [[nodiscard]] std::string get_string() const;
 

@@ -31,7 +31,7 @@ void esqlxx::generator::read_inputs()
 
     this->output_structure_ = output_structure;
     this->grouping_attributes_ = grouping_attributes;
-    this->grouping_variables_ = esqlxx::grouping_variable::get_grouping_variables(n, grouping_variable_aggregates, grouping_variable_predicates);
+    this->grouping_variables_ = esqlxx::grouping_variable::get_grouping_variables(n, grouping_variable_aggregates, grouping_variable_predicates, grouping_attributes);
     this->having_clause_ = esqlxx::utility::to_cpp(having_clause);
 }
 
@@ -139,7 +139,7 @@ void esqlxx::generator::generate_struct()
         }
         else
         {
-            this->s_ += "int ";
+            this->s_ += "double ";
         }
         this->s_ += aggregate_fn.get_string() + "{};\n";
     }
@@ -172,7 +172,7 @@ void esqlxx::generator::generate_helpers()
     }
     this->s_ += "std::endl;\n"
         "  for (const auto& [key, value] : output) {\n"
-        "    if (" + this->generate_having_clause() + ") {\n";
+        "    if (" + (this->generate_having_clause().length() > 0 ? this->generate_having_clause() : "true") + ") {\n";
     for (auto const& e : this->output_structure_)
     {
         this->s_ += "      std::cout << value." + e + " << \" \";\n";

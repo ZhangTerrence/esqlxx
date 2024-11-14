@@ -5,6 +5,7 @@
 #include "predicate.hpp"
 
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace esqlxx
@@ -16,12 +17,13 @@ namespace esqlxx
 
         void add_aggregate_fn(int i, std::string const& aggregate_fn);
 
-        void add_predicate(int i, std::string const& predicate);
+        void add_predicate(int i, std::string const& predicate, std::unordered_map<std::string, bool> const& grouping_attributes);
 
         static std::vector<esqlxx::grouping_variable> get_grouping_variables(
             int n,
             std::vector<std::string> const& grouping_variable_aggregates,
-            std::vector<std::string> const& grouping_variable_predicates);
+            std::vector<std::string> const& grouping_variable_predicates,
+            std::vector<std::string> const& grouping_attributes);
 
         [[nodiscard]] int get_i() const { return this->i_; }
 
