@@ -7,7 +7,7 @@
 #include <utility>
 
 esqlxx::generator::generator(std::string connection_string, std::string table)
-    : connection_string_(std::move(connection_string)), table_(std::move(table))
+    : num_grouping_aggregates(0), connection_string_(std::move(connection_string)), table_(std::move(table))
 {
 }
 
@@ -29,10 +29,11 @@ void esqlxx::generator::read_inputs()
     std::vector<std::string> const grouping_variable_predicates = esqlxx::utility::split(inputs[4], ',');
     std::string const having_clause = inputs[5];
 
+    this->num_grouping_aggregates = grouping_variable_aggregates.size();
     this->output_structure_ = output_structure;
     this->grouping_attributes_ = grouping_attributes;
-    this->grouping_variables_ = esqlxx::grouping_variable::get_grouping_variables(n, grouping_variable_aggregates, grouping_variable_predicates, grouping_attributes);
-    this->having_clause_ = esqlxx::utility::to_cpp(having_clause);
+    this->grouping_variables_ = esqlxx::grouping_variable::get_grouping_variables(n, grouping_variable_aggregates, grouping_variable_predicates);
+    this->having_clause_ = having_clause;
 }
 
 void esqlxx::generator::print() const
@@ -54,21 +55,18 @@ void esqlxx::generator::print() const
     {
         std::cout << grouping_variable.get_i() << " ";
         std::cout << "Aggregate Functions: ";
-        for (auto const& aggregate_fn : grouping_variable.get_aggregate_fns())
+        for (auto const& aggregate_fn : grouping_variable.get_aggregates())
         {
             std::cout << aggregate_fn.get_string() << " ";
         }
-        std::cout << "Predicates: ";
-        for (auto const& predicate : grouping_variable.get_predicates())
-        {
-            std::cout << predicate.get_string() << " ";
-        }
+        std::cout << "Predicate: ";
+        std::cout << grouping_variable.get_predicate().get_string() << " ";
         std::cout << "\n";
     }
     std::cout << "Having clause: " << this->having_clause_ << std::endl;
 }
 
-void esqlxx::generator::generate()
+void esqlxx::generator::generate(bool const count_rows)
 {
     this->get_table_info();
 
@@ -76,7 +74,7 @@ void esqlxx::generator::generate()
     this->s_ += "\n";
     this->generate_struct();
     this->s_ += "\n";
-    this->generate_helpers();
+    this->generate_helpers(count_rows);
     this->s_ += "\n";
     this->generate_main();
 
@@ -105,6 +103,7 @@ void esqlxx::generator::get_table_info()
 void esqlxx::generator::generate_headers()
 {
     this->s_ +=
+        "#include <iomanip>\n"
         "#include <iostream>\n"
         "#include <pqxx/pqxx>\n"
         "#include <set>\n"
@@ -122,10 +121,10 @@ void esqlxx::generator::generate_struct()
     {
         this->s_ += "  " + std::get<1>(this->attributes_[grouping_attribute]) + " " + grouping_attribute + ";\n";
     }
-    std::vector<esqlxx::aggregate_fn> aggregate_fns;
+    std::vector<esqlxx::aggregate> aggregate_fns;
     for (auto const& grouping_variable : this->grouping_variables_)
     {
-        for (auto const& aggregate_fn : grouping_variable.get_aggregate_fns())
+        for (auto const& aggregate_fn : grouping_variable.get_aggregates())
         {
             aggregate_fns.push_back(aggregate_fn);
         }
@@ -146,8 +145,15 @@ void esqlxx::generator::generate_struct()
     this->s_ += "};\n";
 }
 
-void esqlxx::generator::generate_helpers()
+void esqlxx::generator::generate_helpers(bool const count_rows)
 {
+    this->s_ +=
+        "template<typename T> void print(T t, const int& width) {\n"
+        "  std::cout << std::left << std::setw(width) << std::setfill(' ') << t;\n"
+        "}\n";
+
+    this->s_ += "\n";
+
     this->s_ +=
         "std::vector<std::string> split(std::string const& s, char const c) {\n"
         "  std::stringstream ss(s);\n"
@@ -163,25 +169,32 @@ void esqlxx::generator::generate_helpers()
         "  }\n"
         "  return tokens;\n"
         "}\n";
+
+    this->s_ += "\n";
+
     this->s_ +=
-        "void print_output(std::unordered_map<std::string, output_tuple> const& output) {\n"
-        "  std::cout << ";
+        "void print_output(std::unordered_map<std::string, output_tuple> const& output) {\n";
     for (auto const& e : this->output_structure_)
     {
-        this->s_ += "\"" + e + " \" << ";
+        this->s_ += "  print(\"" + e + "\", 20);\n";
     }
-    this->s_ += "std::endl;\n"
-        "  for (const auto& [key, value] : output) {\n"
-        "    if (" + (this->generate_having_clause().length() > 0 ? this->generate_having_clause() : "true") + ") {\n";
+    this->s_ +=
+        "  std::cout << std::endl;\n"
+        "  int i = 0;\n"
+        "  for (const auto& [_, r] : output) {\n"
+        "    if (" + (this->having_clause_.length() > 0 ? this->having_clause_ : "true") + ") {\n";
     for (auto const& e : this->output_structure_)
     {
-        this->s_ += "      std::cout << value." + e + " << \" \";\n";
+        this->s_ += "      print(" + e + ", 20);\n";
     }
     this->s_ +=
         "      std::cout << std::endl;\n"
+        "      i++;\n"
         "    }\n"
-        "  }\n"
-        "}\n";
+        "  }\n";
+
+    this->s_ += count_rows ? "  std::cout << \"Rows: \" << i << std::endl;\n" : "";
+    this->s_ += "}\n";
 }
 
 void esqlxx::generator::generate_main()
@@ -205,7 +218,7 @@ std::string esqlxx::generator::generate_init_loop() const
     s +=
         "  std::set<std::string> set;\n"
         "  for (auto [" + esqlxx::utility::join(keys, ", ") + "] : tx.query<" + esqlxx::utility::join(values, ", ") + ">(\"SELECT * FROM " + this->table_ + "\")) {\n" +
-        "    if (auto const hash = " + this->generate_hash_fn() + "; !set.contains(hash)) {\n"
+        "    if (auto const hash = " + this->generate_hash_fn(true) + "; !set.contains(hash)) {\n"
         "      output_tuple r;\n";
     for (auto const& grouping_attribute : this->grouping_attributes_)
     {
@@ -214,9 +227,9 @@ std::string esqlxx::generator::generate_init_loop() const
     int i = 0;
     for (auto const& grouping_variable : this->grouping_variables_)
     {
-        for (auto const& aggregate_fn : grouping_variable.get_aggregate_fns())
+        for (auto const& aggregate_fn : grouping_variable.get_aggregates())
         {
-            s += std::format("      r.n[{}] = {};\n", i, esqlxx::generator::generate_aggregate_init(aggregate_fn)) + std::format("      r.{} = 0;\n", aggregate_fn.get_string());
+            s += std::format("      r.n[{}] = 0;\n", i) + std::format("      r.{} = {};\n", aggregate_fn.get_string(), esqlxx::generator::generate_aggregate_init(aggregate_fn));
             i++;
         }
     }
@@ -234,38 +247,28 @@ std::string esqlxx::generator::generate_scan_loops() const
 {
     auto [keys, values] = esqlxx::utility::sort_split(this->attributes_);
     std::string s;
-    int i = 0;
     for (auto const& grouping_variable : this->grouping_variables_)
     {
         s +=
             "  for (auto [" + esqlxx::utility::join(keys, ", ") + "] : tx.query<" + esqlxx::utility::join(values, ", ") + ">(\"SELECT * FROM " + this->table_ + "\")) {\n"
-            "    auto const hash = " + this->generate_hash_fn() + ";\n"
-            "    if (";
-        for (int j = 0; j < grouping_variable.get_predicates().size(); j++)
-        {
-            auto predicate = grouping_variable.get_predicates()[j];
-            s += predicate.get_string();
-            if (j != grouping_variable.get_predicates().size() - 1)
-            {
-                s += " && ";
-            }
-        }
-        s += ") {\n";
-        for (auto const& aggregate_fn : grouping_variable.get_aggregate_fns())
+            "    for (auto const& [_, r] : output) {\n"
+            "      auto const hash = " + this->generate_hash_fn(false) + ";\n"
+            "      if (" + grouping_variable.get_predicate().get_string() + ") {\n";
+        for (auto const& aggregate : grouping_variable.get_aggregates())
         {
             s +=
-                std::format("      output[hash].n[{}]++;\n", i) +
-                std::format("      output[hash].{} {}", aggregate_fn.get_string(), esqlxx::generator::generate_aggregate_inc(aggregate_fn));
-            i++;
+                std::format("        output[hash].n[{}]++;\n", aggregate.get_i()) +
+                std::format("        output[hash].{} {}", aggregate.get_string(), esqlxx::generator::generate_aggregate_inc(aggregate));
         }
         s +=
+            "      }\n"
             "    }\n"
             "  }\n";
     }
     return s;
 }
 
-std::string esqlxx::generator::generate_hash_fn() const
+std::string esqlxx::generator::generate_hash_fn(bool const init) const
 {
     std::string s;
     s += "std::format(\"";
@@ -283,7 +286,7 @@ std::string esqlxx::generator::generate_hash_fn() const
     }
     for (int i = 0; i < this->grouping_attributes_.size(); i++)
     {
-        s += this->grouping_attributes_[i];
+        s += (init ? "" : "r.") + this->grouping_attributes_[i];
         if (i != this->grouping_attributes_.size() - 1)
         {
             s += ", ";
@@ -296,9 +299,9 @@ std::string esqlxx::generator::generate_hash_fn() const
     return s;
 }
 
-int esqlxx::generator::generate_aggregate_init(esqlxx::aggregate_fn const& aggregate_fn)
+int esqlxx::generator::generate_aggregate_init(esqlxx::aggregate const& aggregate)
 {
-    switch (aggregate_fn.get_type())
+    switch (aggregate.get_type())
     {
     case esqlxx::AggregateType::Count:
     case esqlxx::AggregateType::Sum:
@@ -312,56 +315,26 @@ int esqlxx::generator::generate_aggregate_init(esqlxx::aggregate_fn const& aggre
     }
 }
 
-std::string esqlxx::generator::generate_aggregate_inc(esqlxx::aggregate_fn const& aggregate_fn)
+std::string esqlxx::generator::generate_aggregate_inc(esqlxx::aggregate const& aggregate)
 {
-    switch (aggregate_fn.get_type())
+    switch (aggregate.get_type())
     {
     case Count:
     default:
         return "+= 1;\n";
     case Sum:
-        return std::format("+= {};\n", aggregate_fn.get_attribute());
+        return std::format("+= {};\n", aggregate.get_attribute());
     case Average:
         return std::format("= output[hash].{} + ({} - output[hash].{}) / output[hash].n[{}];\n",
-                           aggregate_fn.get_string(),
-                           aggregate_fn.get_attribute(),
-                           aggregate_fn.get_string(),
-                           aggregate_fn.get_i());
+                           aggregate.get_string(),
+                           aggregate.get_attribute(),
+                           aggregate.get_string(),
+                           aggregate.get_i());
     case Min:
-        return std::format("= std::min(output[hash].{}, static_cast<double>({}));\n", aggregate_fn.get_string(), aggregate_fn.get_attribute());
+        return std::format("= std::min(output[hash].{}, static_cast<double>({}));\n", aggregate.get_string(), aggregate.get_attribute());
     case Max:
-        return std::format("= std::max(output[hash].{}, static_cast<double>({}));\n", aggregate_fn.get_string(), aggregate_fn.get_attribute());
+        return std::format("= std::max(output[hash].{}, static_cast<double>({}));\n", aggregate.get_string(), aggregate.get_attribute());
     }
-}
-
-std::string esqlxx::generator::generate_having_clause() const
-{
-    std::string s;
-    std::unordered_map<std::string, bool> aggregate_fns;
-    for (auto const& grouping_variable : this->grouping_variables_)
-    {
-        for (auto const& aggregate_fn : grouping_variable.get_aggregate_fns())
-        {
-            aggregate_fns[aggregate_fn.get_string()] = true;
-        }
-    }
-    auto const& tokens = esqlxx::utility::split(this->having_clause_, ' ');
-    for (int i = 0; i < tokens.size(); i++)
-    {
-        if (auto const& token = tokens[i]; aggregate_fns.contains(token))
-        {
-            s += "value." + token;
-        }
-        else
-        {
-            s += token;
-        }
-        if (i != tokens.size() - 1)
-        {
-            s += " ";
-        }
-    }
-    return s;
 }
 
 void esqlxx::generator::write_file() const

@@ -14,13 +14,17 @@ namespace esqlxx
     public:
         generator(std::string connection_string, std::string table);
 
+        // Reads phi operator inputs and generates variables
         void read_inputs();
 
+        // Prints read data for debugging purposes.
         void print() const;
 
-        void generate();
+        // Generates the C++ file.
+        void generate(bool count_rows);
 
     private:
+        int num_grouping_aggregates;
         std::vector<std::string> output_structure_;
         std::vector<std::string> grouping_attributes_;
         std::vector<esqlxx::grouping_variable> grouping_variables_;
@@ -34,14 +38,13 @@ namespace esqlxx
         void get_table_info();
         void generate_headers();
         void generate_struct();
-        void generate_helpers();
+        void generate_helpers(bool count_rows);
         void generate_main();
         std::string generate_init_loop() const;
         std::string generate_scan_loops() const;
-        std::string generate_hash_fn() const;
-        static int generate_aggregate_init(esqlxx::aggregate_fn const& aggregate_fn);
-        static std::string generate_aggregate_inc(esqlxx::aggregate_fn const& aggregate_fn);
-        std::string generate_having_clause() const;
+        std::string generate_hash_fn(bool init) const;
+        static int generate_aggregate_init(esqlxx::aggregate const& aggregate);
+        static std::string generate_aggregate_inc(esqlxx::aggregate const& aggregate);
         void write_file() const;
     };
 }

@@ -1,11 +1,10 @@
 #ifndef GROUPING_VARIABLE_HPP
 #define GROUPING_VARIABLE_HPP
 
-#include "aggregate_fn.hpp"
+#include "aggregate.hpp"
 #include "predicate.hpp"
 
 #include <string>
-#include <unordered_map>
 #include <vector>
 
 namespace esqlxx
@@ -15,26 +14,29 @@ namespace esqlxx
     public:
         explicit grouping_variable(int i);
 
-        void add_aggregate_fn(int i, std::string const& aggregate_fn);
+        void add_aggregate(int i, std::string const& aggregate);
 
-        void add_predicate(int i, std::string const& predicate, std::unordered_map<std::string, bool> const& grouping_attributes);
+        void add_predicate(int i, std::string const& predicate);
 
+        // Initializes all the grouping variables with all of their respective aggregates and predicates
         static std::vector<esqlxx::grouping_variable> get_grouping_variables(
             int n,
             std::vector<std::string> const& grouping_variable_aggregates,
-            std::vector<std::string> const& grouping_variable_predicates,
-            std::vector<std::string> const& grouping_attributes);
+            std::vector<std::string> const& grouping_variable_predicates);
 
+        // Gets the grouping variable number.
         [[nodiscard]] int get_i() const { return this->i_; }
 
-        [[nodiscard]] std::vector<esqlxx::aggregate_fn> get_aggregate_fns() const { return this->aggregate_fns_; }
+        // Gets all the aggregates.
+        [[nodiscard]] std::vector<esqlxx::aggregate> get_aggregates() const { return this->aggregates_; }
 
-        [[nodiscard]] std::vector<esqlxx::predicate> get_predicates() const { return this->predicates_; }
+        // Gets all the predicates.
+        [[nodiscard]] esqlxx::predicate get_predicate() const { return this->predicate_; }
 
     private:
         int i_;
-        std::vector<esqlxx::aggregate_fn> aggregate_fns_;
-        std::vector<esqlxx::predicate> predicates_;
+        std::vector<esqlxx::aggregate> aggregates_;
+        esqlxx::predicate predicate_;
     };
 }
 

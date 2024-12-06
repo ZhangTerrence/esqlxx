@@ -18,7 +18,7 @@ namespace esqlxx
         template <typename K, typename V>
         static std::tuple<std::vector<K>, std::vector<V>> sort_split(std::unordered_map<K, std::tuple<int, V>> map);
 
-        static std::string to_cpp(std::string s);
+        static std::string replace_gv_with_r(std::string const& str, int n);
     };
 
     template <typename K, typename V>

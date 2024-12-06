@@ -2,33 +2,23 @@
 #define PREDICATE_HPP
 
 #include <string>
-#include <unordered_map>
 
 namespace esqlxx
 {
     class predicate
     {
     public:
-        predicate(int i, std::string const& predicate, std::unordered_map<std::string, bool> const& grouping_attributes);
+        predicate(int i, std::string const& predicate);
 
-        [[nodiscard]] std::string get_string() const;
+        // Gets the raw string of the predicate.
+        [[nodiscard]] std::string get_string() const { return this->string_; }
 
-        [[nodiscard]] int get_i() const { return this->i_; }
-
-        [[nodiscard]] int get_grouping_variable_i() const { return this->grouping_variable_i_; }
-
-        [[nodiscard]] std::string get_lhs() const { return this->lhs_; }
-
-        [[nodiscard]] std::string get_operator() const { return this->operator_; }
-
-        [[nodiscard]] std::string get_rhs() const { return this->rhs_; }
+        // Gets the grouping variable that this aggregate belongs to.
+        [[nodiscard]] int get_ith_grouping_variable() const { return this->ith_grouping_variable_; }
 
     private:
-        int i_;
-        int grouping_variable_i_;
-        std::string lhs_;
-        std::string operator_;
-        std::string rhs_;
+        std::string string_;
+        int ith_grouping_variable_;
     };
 }
 

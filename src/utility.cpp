@@ -1,5 +1,6 @@
 #include "../include/utility.hpp"
 
+#include <iostream>
 #include <regex>
 #include <sstream>
 
@@ -39,12 +40,15 @@ std::string esqlxx::utility::join(std::vector<std::string> const& vector, std::s
     return s;
 }
 
-std::string esqlxx::utility::to_cpp(std::string s)
+std::string esqlxx::utility::replace_gv_with_r(std::string const& str, int const n)
 {
-    s = std::regex_replace(s, std::regex("\'"), "\"");
-    s = std::regex_replace(s, std::regex("="), "==");
-    s = std::regex_replace(s, std::regex("AND"), "&&");
-    s = std::regex_replace(s, std::regex("OR"), "||");
-    s = std::regex_replace(s, std::regex("NOT"), "!");
-    return s;
+    std::string out = str;
+
+    for (int i = 1; i < n + 1; i++)
+    {
+        std::string s = std::format("gv{}", i);
+        out = std::regex_replace(out, std::regex(s), "r");
+    }
+
+    return out;
 }
