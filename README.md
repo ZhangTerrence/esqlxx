@@ -40,5 +40,5 @@ make
 ./esqlxx
 ```
 
-This may take some time for the first time.
+This may take some time for the first time. Note, the generated file needs to be called `code.cpp` to execute.
 
